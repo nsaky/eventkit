@@ -2,9 +2,9 @@
 
 A lightweight, zero-database Node.js toolkit for event registration, digital ticketing, QR code generation, ticket validation, attendee check-in, attendance analytics, search, and data export.
 
-[![npm version](https://img.shields.io/npm/v/eventkit.svg)](https://www.npmjs.com/package/eventkit)
+[![npm version](https://img.shields.io/npm/v/@nsaky/eventkit.svg)](https://www.npmjs.com/package/@nsaky/eventkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/eventkit.svg)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/node/v/@nsaky/eventkit.svg)](https://nodejs.org)
 [![CI](https://github.com/nsaky/eventkit/actions/workflows/tests.yml/badge.svg)](https://github.com/nsaky/eventkit/actions/workflows/tests.yml)
 
 ---
@@ -53,7 +53,7 @@ It handles the full lifecycle from registration to arrival:
 Install EventKit into your Node.js project using npm:
 
 ```bash
-npm install eventkit
+npm install @nsaky/eventkit
 ```
 
 ---
@@ -66,7 +66,7 @@ EventKit supports maintained **Node.js LTS releases**:
 - **Node.js 24**
 - **Node.js 26**
 - Minimum supported engine: **`node >= 22.0.0`**
-- Module system: **CommonJS** (`const EventKit = require('eventkit');`)
+- Module system: **CommonJS** (`const EventKit = require('@nsaky/eventkit');`)
 
 ---
 
@@ -75,7 +75,7 @@ EventKit supports maintained **Node.js LTS releases**:
 Initialize EventKit before calling any domain methods. You can optionally supply a custom storage directory path:
 
 ```javascript
-const EventKit = require('eventkit');
+const EventKit = require('@nsaky/eventkit');
 
 async function setup() {
   // Uses default './eventkit-data' directory:
@@ -313,7 +313,7 @@ eventkit-data/
 EventKit exports custom error classes extending `EventKitError`. Every error contains an informative message and a machine-readable `code` property:
 
 ```javascript
-const EventKit = require('eventkit');
+const EventKit = require('@nsaky/eventkit');
 const {
   EventNotFoundError,
   DuplicateRegistrationError,

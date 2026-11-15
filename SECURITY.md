@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest release of `eventkit` is actively supported with security patches:
+Only the latest release of `@nsaky/eventkit` is actively supported with security patches:
 
 | Version | Supported          |
 | ------- | ------------------ |

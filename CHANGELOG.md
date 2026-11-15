@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the `eventkit` package will be documented in this file.
+All notable changes to the `@nsaky/eventkit` package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Initial Public Release
 
-`eventkit` is a lightweight, zero-database Node.js toolkit for event registration, digital ticketing, QR code generation, ticket validation, attendee check-in, attendance analytics, and data export.
+`@nsaky/eventkit` is a lightweight, zero-database Node.js toolkit for event registration, digital ticketing, QR code generation, ticket validation, attendee check-in, attendance analytics, and data export.
 
 #### Added
 - **Core Event Management**:
