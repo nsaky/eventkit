@@ -2,48 +2,55 @@
 
 A lightweight, zero-database Node.js toolkit for event registration, digital ticketing, QR code generation, ticket validation, attendee check-in, attendance analytics, search, and data export.
 
-[![CI](https://github.com/nsaky/eventkit/actions/workflows/tests.yml/badge.svg)](https://github.com/nsaky/eventkit/actions/workflows/tests.yml)
 [![npm version](https://img.shields.io/npm/v/eventkit.svg)](https://www.npmjs.com/package/eventkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/eventkit.svg)](https://nodejs.org)
+[![CI](https://github.com/nsaky/eventkit/actions/workflows/tests.yml/badge.svg)](https://github.com/nsaky/eventkit/actions/workflows/tests.yml)
 
 ---
 
-## 1. Introduction
+## Table of Contents
 
-Developers building event platforms, hackathons, college fests, conferences, and community meetups frequently need to implement repetitive infrastructure: participant registration, duplicate prevention, ticket generation, scannable QR codes, arrival check-in, real-time statistics, and roster exports.
-
-**EventKit** eliminates this boilerplate by providing a modular, self-contained Node.js toolkit backed by persistent local JSON storage. Without requiring external database servers, cloud credentials, or proprietary SDKs, EventKit provides a clean, asynchronous Promise-based API for end-to-end event management.
-
-### Target Use Cases
-- College festivals and university technical symposiums
-- Hackathons and coding competitions
-- Technology summits, conferences, and seminars
-- Workshops, masterclasses, and hands-on labs
-- Startup demo days and community meetups
-- Small-to-medium registration-based event platforms
-
----
-
-## 2. Feature Overview
-
-- **Zero-Database Persistent Storage**: Maintains local JSON files (`events.json`, `attendees.json`, `tickets.json`) with atomic writes via temporary files and automatic schema initialization.
-- **Write Serialization**: Built-in async mutex lock (`runExclusive`) and atomic batch operations (`saveBatch`) to prevent concurrent write collisions.
-- **Event Management**: Create, retrieve, list, update, and delete events. Enforces capacity floors and cascades deletions to associated attendees and tickets.
-- **Attendee Registration**: Schema validation, email normalization (`trim` + `toLowerCase`), duplicate registration prevention per event, and capacity enforcement.
-- **Digital Ticketing**: Automatic ticket generation (`EK-<10-HEX>`) upon registration, standalone ticket issuance, and safe ticket cancellation.
-- **Scannable QR Codes**: Generate scannable QR codes in **PNG** (Buffer) and **SVG** (vector string) formats encoding minimal identifiers (`{ ticketId, eventId }`) without exposing attendee personal data. Supports saving directly to disk with overwrite protection.
-- **Non-Destructive Ticket Validation**: Authenticate tickets before check-in, reporting structured states: `VALID`, `INVALID`, `WRONG_EVENT`, `ALREADY_CHECKED_IN`, and `CANCELLED`.
-- **Atomic Attendee Check-In**: Synchronized check-in updating ticket status to `USED` and attendee `checkedIn` to `true`, preventing duplicate check-ins and recording precise arrival timestamps.
-- **Real-Time Attendance Analytics**: Computes total registrations, checked-in count, pending count, attendance rate, and capacity fill rate without division-by-zero risks.
-- **Search Engine**: Case-insensitive substring search by attendee name, email, or ticket ID, with filters for attendance status.
-- **Data Export System**: Full JSON snapshots and RFC 4180 compliant CSV exports with proper escaping of commas, quotation marks, line breaks, and Unicode text.
+- [What does EventKit do?](#what-does-eventkit-do)
+- [How do I install it?](#how-do-i-install-it)
+- [Which Node.js versions does it support?](#which-nodejs-versions-does-it-support)
+- [How do I initialize it?](#how-do-i-initialize-it)
+- [How do I create an event?](#how-do-i-create-an-event)
+- [How do I register an attendee?](#how-do-i-register-an-attendee)
+- [How do I retrieve their ticket?](#how-do-i-retrieve-their-ticket)
+- [How do I generate a QR code?](#how-do-i-generate-a-qr-code)
+- [How do I validate and check in a ticket?](#how-do-i-validate-and-check-in-a-ticket)
+- [How do I retrieve attendance statistics?](#how-do-i-retrieve-attendance-statistics)
+- [How do I export records?](#how-do-i-export-records)
+- [Where is data stored?](#where-is-data-stored)
+- [How do I handle errors?](#how-do-i-handle-errors)
+- [What are the package's limitations?](#what-are-the-packages-limitations)
+- [Complete API Reference](#complete-api-reference)
+- [Data Models & Lifecycle](#data-models--lifecycle)
+- [Runnable Examples](#runnable-examples)
+- [License](#license)
 
 ---
 
-## 3. Installation
+## What does EventKit do?
 
-Install via npm:
+EventKit provides an all-in-one, modular backend toolkit for handling event logistics in Node.js applications without setting up an external database. 
+
+It handles the full lifecycle from registration to arrival:
+1. **Event Creation & Management**: Create and update events with capacity limits, dates, and locations.
+2. **Attendee Registration**: Collects participant details, normalizes email addresses, prevents duplicate registrations per event, and enforces capacity.
+3. **Automatic Digital Ticketing**: Instantly generates cryptographically secure unique ticket IDs (`EK-<10-HEX>`) for every attendee.
+4. **Scannable QR Codes**: Renders high-resolution QR codes in **PNG** (Buffer) or **SVG** (vector string) formats encoding non-PII ticket references (`{ ticketId, eventId }`).
+5. **Non-Destructive Validation**: Inspects ticket authenticity and checks whether a ticket is valid, cancelled, from another event, or already used.
+6. **Arrival Check-In**: Checks in attendees, sets ticket status to `USED`, marks the attendee as admitted, records arrival timestamps, and prevents duplicate check-ins.
+7. **Attendance Analytics**: Calculates real-time attendance rates, headcounts, pending counts, and capacity fill percentages.
+8. **Roster Search & Export**: Search participants by name, email, or ticket ID, and export complete rosters to formatted JSON or RFC 4180 compliant CSV files.
+
+---
+
+## How do I install it?
+
+Install EventKit into your Node.js project using npm:
 
 ```bash
 npm install eventkit
@@ -51,323 +58,371 @@ npm install eventkit
 
 ---
 
-## 4. Requirements
+## Which Node.js versions does it support?
 
-- **Runtime**: Node.js `>= 22.0.0` (active LTS releases: Node.js 22, 24, 26)
-- **Module System**: CommonJS (`require` / `module.exports`)
-- **Dependencies**: Minimal footprint (depends only on `qrcode` for QR rendering)
+EventKit supports maintained **Node.js LTS releases**:
+
+- **Node.js 22**
+- **Node.js 24**
+- **Node.js 26**
+- Minimum supported engine: **`node >= 22.0.0`**
+- Module system: **CommonJS** (`const EventKit = require('eventkit');`)
 
 ---
 
-## 5. Quick Start
+## How do I initialize it?
+
+Initialize EventKit before calling any domain methods. You can optionally supply a custom storage directory path:
 
 ```javascript
 const EventKit = require('eventkit');
 
-async function main() {
-  // 1. Initialize EventKit with storage directory
-  await EventKit.initialize({ storagePath: './my-event-data' });
+async function setup() {
+  // Uses default './eventkit-data' directory:
+  await EventKit.initialize();
 
-  // 2. Create an event
-  const event = await EventKit.createEvent({
-    name: 'Tech Summit 2026',
-    description: 'Annual technology conference',
-    date: '2026-12-15',
-    location: 'Pune',
-    capacity: 200
+  // Or configure a custom storage path:
+  await EventKit.initialize({
+    storagePath: './my-event-data'
   });
-
-  // 3. Register an attendee (automatically generates a ticket)
-  const attendee = await EventKit.registerAttendee(event.id, {
-    name: 'Jane Doe',
-    email: 'jane@example.com',
-    phone: '+919876543210'
-  });
-  console.log(`Registered: ${attendee.name}, Ticket ID: ${attendee.ticket.id}`);
-
-  // 4. Generate QR code (PNG Buffer or write to file)
-  const qr = await EventKit.generateQRCode(attendee.ticket.id, {
-    format: 'png',
-    filePath: './tickets/jane-ticket.png',
-    overwrite: true
-  });
-  console.log(`QR code saved to: ${qr.filePath}`);
-
-  // 5. Validate ticket before check-in
-  const validation = await EventKit.validateTicket(event.id, attendee.ticket.id);
-  console.log(`Validation status: ${validation.status}`); // 'VALID'
-
-  // 6. Check in attendee
-  const checkIn = await EventKit.checkIn(event.id, attendee.ticket.id);
-  console.log(`Check-in successful at: ${checkIn.checkedInAt}`);
-
-  // 7. Get real-time attendance statistics
-  const stats = await EventKit.getAttendanceStats(event.id);
-  console.log(`Attendance: ${stats.totalCheckedIn}/${stats.totalRegistrations} (${stats.attendancePercentage}%)`);
-
-  // 8. Search attendees
-  const searchResults = await EventKit.searchAttendees(event.id, 'jane', { checkedIn: true });
-  console.log(`Found ${searchResults.length} checked-in attendee(s).`);
-
-  // 9. Export attendee roster to CSV
-  const csv = await EventKit.exportAttendees(event.id, 'csv', {
-    filePath: './exports/attendees.csv',
-    overwrite: true
-  });
-  console.log(`Exported attendees to CSV: ${csv.filePath}`);
 }
+```
 
-main().catch(console.error);
+- Relative paths are resolved against your project's current working directory (`process.cwd()`).
+- If the directory or JSON files do not exist, EventKit creates them automatically.
+- Re-initializing with a different path safely switches storage and flushes the in-memory cache without stale data.
+
+---
+
+## How do I create an event?
+
+Use `EventKit.createEvent(data)`:
+
+```javascript
+const event = await EventKit.createEvent({
+  name: 'Tech Summit 2026',
+  description: 'Annual technology conference',
+  date: '2026-12-15',      // Calendar date in YYYY-MM-DD format
+  location: 'Pune',
+  capacity: 200             // Optional positive integer, or null for unlimited
+});
+
+console.log(event);
+// {
+//   id: 'evt_a1b2c3d4e5f60718293a4b5c',
+//   name: 'Tech Summit 2026',
+//   description: 'Annual technology conference',
+//   date: '2026-12-15',
+//   location: 'Pune',
+//   capacity: 200,
+//   createdAt: '2026-11-16T10:00:00.000Z',
+//   updatedAt: '2026-11-16T10:00:00.000Z'
+// }
+```
+
+- Event IDs are generated automatically with the prefix `evt_`.
+- Dates are strictly validated for calendar correctness (impossible dates like `2026-02-30` are rejected).
+
+---
+
+## How do I register an attendee?
+
+Use `EventKit.registerAttendee(eventId, attendeeData)`:
+
+```javascript
+const attendee = await EventKit.registerAttendee(event.id, {
+  name: 'John Doe',
+  email: 'John.Doe@Example.com', // Automatically trimmed and converted to lowercase
+  phone: '+919876543210'          // Optional contact number
+});
+
+console.log(`Attendee ID: ${attendee.id}`);
+console.log(`Assigned Ticket ID: ${attendee.ticket.id}`);
+```
+
+- **Automatic Ticket Generation**: Every registration automatically generates and returns a linked ticket object.
+- **Duplicate Prevention**: The same normalized email address cannot register more than once for the same event (throws `DuplicateRegistrationError`).
+- **Capacity Enforcement**: If the event has reached its maximum capacity, registrations are rejected (throws `EventCapacityReachedError`).
+
+---
+
+## How do I retrieve their ticket?
+
+You can access tickets in multiple ways:
+
+```javascript
+// 1. Directly from the registration response:
+const ticketId = attendee.ticket.id;
+
+// 2. By ticket ID:
+const ticket = await EventKit.getTicket('EK-7F92A1C4D8');
+console.log(ticket.status); // 'ACTIVE'
+
+// 3. From attendee record lookup:
+const attendeeRecord = await EventKit.getAttendee(attendee.id);
+console.log(attendeeRecord.ticket);
+
+// 4. Retrieve all tickets belonging to an event:
+const eventTickets = await EventKit.getTickets(event.id);
+
+// 5. Retrieve all tickets across all events:
+const allTickets = await EventKit.getAllTickets();
 ```
 
 ---
 
-## 6. Initialization & Storage Configuration
+## How do I generate a QR code?
 
-EventKit initializes its storage directory automatically on the first call to `EventKit.initialize()`.
+Use `EventKit.generateQRCode(ticketId, options)`. EventKit supports both **PNG** (image Buffer) and **SVG** (vector XML string):
 
 ```javascript
-await EventKit.initialize({
-  storagePath: './custom-event-data' // Optional, defaults to './eventkit-data'
+// Generate PNG and save to disk
+const pngQR = await EventKit.generateQRCode('EK-7F92A1C4D8', {
+  format: 'png',              // 'png' (default) or 'svg'
+  width: 300,                 // Width in pixels (default 300)
+  margin: 2,                  // Quiet zone border modules (default 2)
+  errorCorrectionLevel: 'M',  // 'L', 'M', 'Q', 'H' (default 'M')
+  filePath: './tickets/ticket.png',
+  overwrite: true
+});
+
+console.log(`PNG saved to: ${pngQR.filePath}`);
+console.log(`Buffer length: ${pngQR.data.length} bytes`);
+
+// Or generate an SVG string directly:
+const svgQR = await EventKit.generateQRCode('EK-7F92A1C4D8', {
+  format: 'svg'
+});
+console.log(svgQR.data); // '<svg ... </svg>'
+```
+
+- **Non-PII Payload**: Encodes minimal JSON reference `{ "ticketId": "...", "eventId": "..." }`. No personal information (names, emails, phone numbers) is embedded in the QR image.
+
+---
+
+## How do I validate and check in a ticket?
+
+### 1. Validate (Non-destructive inspection)
+Before checking an attendee in, validate their ticket without modifying any records:
+
+```javascript
+const validation = await EventKit.validateTicket(event.id, 'EK-7F92A1C4D8');
+
+console.log(validation.valid);   // true or false
+console.log(validation.status);  // 'VALID' | 'INVALID' | 'WRONG_EVENT' | 'ALREADY_CHECKED_IN' | 'CANCELLED'
+console.log(validation.message); // Human-readable explanation
+```
+
+### 2. Check-In (Admit attendee)
+Admit the attendee at the gate:
+
+```javascript
+const checkIn = await EventKit.checkIn(event.id, 'EK-7F92A1C4D8');
+
+console.log(checkIn.message);      // 'Attendee John Doe successfully checked in.'
+console.log(checkIn.checkedInAt);  // '2026-11-16T12:00:00.000Z'
+```
+
+- **Atomic Synchronization**: Updates ticket `status` to `USED` and attendee `checkedIn` to `true`.
+- **Duplicate Check-in Prevention**: Calling `checkIn` again on the same ticket throws `AlreadyCheckedInError` and preserves the original check-in timestamp.
+- **Check Status Anytime**:
+  ```javascript
+  const status = await EventKit.getCheckInStatus('EK-7F92A1C4D8');
+  console.log(status.checkedIn); // true
+  ```
+- **List All Admitted Attendees**:
+  ```javascript
+  const admitted = await EventKit.getCheckedInAttendees(event.id);
+  ```
+
+---
+
+## How do I retrieve attendance statistics?
+
+Use `EventKit.getAttendanceStats(eventId)`:
+
+```javascript
+const stats = await EventKit.getAttendanceStats(event.id);
+
+console.log(stats);
+// {
+//   eventId: 'evt_a1b2c3d4e5f60718293a4b5c',
+//   eventName: 'Tech Summit 2026',
+//   totalRegistrations: 150,
+//   totalCheckedIn: 120,
+//   totalPending: 30,
+//   attendancePercentage: 80.0,      // (120 / 150) * 100
+//   capacity: 200,                   // null if unlimited
+//   registrationPercentage: 75.0     // (150 / 200) * 100
+// }
+```
+
+- Accurately derived from persistent records in real time.
+- Handles empty events safely without division-by-zero errors.
+
+---
+
+## How do I export records?
+
+Export participant rosters in **CSV** (RFC 4180 compliant) or **JSON**:
+
+### Export Attendees
+```javascript
+// Export as formatted CSV string or save to file
+const csvResult = await EventKit.exportAttendees(event.id, 'csv', {
+  filePath: './exports/attendees.csv',
+  overwrite: true
+});
+
+console.log(`CSV saved to: ${csvResult.filePath}`);
+```
+
+**CSV Format Columns**:
+- `Attendee ID`, `Attendee Name`, `Email Address`, `Phone Number`, `Ticket ID`, `Ticket Status`, `Registration Timestamp`, `Attendance Status`, `Check-in Timestamp`
+- Correctly escapes quotes, commas, line breaks, and Unicode text.
+
+### Export Full Event Snapshot (JSON)
+```javascript
+const jsonResult = await EventKit.exportEvent(event.id, 'json', {
+  filePath: './exports/event-snapshot.json',
+  overwrite: true
 });
 ```
 
-- **Storage Location**: Relative paths are consistently resolved against `process.cwd()`.
-- **Automatic File Creation**: Missing JSON files (`events.json`, `attendees.json`, `tickets.json`) are initialized with empty arrays `[]`.
-- **Reinitialization Safety**: Calling `initialize()` multiple times is safe. Reinitializing with a different path cleanly re-binds storage and flushes the in-memory cache without stale data leaks.
-- **Corruption Resilience**: If a storage file contains malformed JSON or non-array root structures, initialization fails with a `StorageCorruptedError` and **never** destroys or overwrites the corrupted file.
+---
+
+## Where is data stored?
+
+All data is stored locally in human-readable JSON files inside the storage directory (default: `./eventkit-data/`):
+
+```text
+eventkit-data/
+├── events.json      # Array of event records
+├── attendees.json   # Array of registered attendee records
+└── tickets.json     # Array of digital ticket records
+```
+
+- **Atomic File Writes**: Records are serialized and written through temporary files (`.<file>.<timestamp>.<random>.tmp`) and renamed into place, guaranteeing file system integrity against crashes.
+- **In-Process Concurrency Protection**: Write operations are serialized via an internal async mutex (`runExclusive`), preventing race conditions during concurrent registrations or check-ins.
+- **Restart Persistence**: Data remains permanently intact across Node.js process terminations and restarts.
 
 ---
 
-## 7. Complete API Reference
+## How do I handle errors?
 
-All API methods are asynchronous and return Promises. Methods return safe deep copies to prevent external callers from modifying internal in-memory records.
+EventKit exports custom error classes extending `EventKitError`. Every error contains an informative message and a machine-readable `code` property:
 
-### 7.1 Initialization
-
-#### `EventKit.initialize(options)`
-Initializes the JSON storage engine and domain services.
-- **Parameters**:
-  - `options.storagePath` *(string, optional)*: Target directory path (default: `'./eventkit-data'`).
-- **Returns**: `Promise<void>`
-- **Errors**: `StorageCorruptedError`, `StorageError`
-
----
-
-### 7.2 Event Management
-
-#### `EventKit.createEvent(data)`
-Creates a new event record with a generated unique ID (`evt_<24-hex>`).
-- **Parameters**:
-  - `data.name` *(string, required)*: Non-empty event name.
-  - `data.date` *(string, required)*: Calendar date in `YYYY-MM-DD` format (validated against calendar correctness).
-  - `data.description` *(string, optional)*: Event description (or `null`).
-  - `data.location` *(string, optional)*: Event venue/location (or `null`).
-  - `data.capacity` *(number, optional)*: Positive integer for maximum allowed attendees, or `null` for unlimited capacity.
-- **Returns**: `Promise<Event>`
-- **Errors**: `InvalidEventDataError`, `NotInitializedError`
-
-#### `EventKit.getEvent(eventId)`
-Retrieves an event by its unique ID.
-- **Parameters**:
-  - `eventId` *(string, required)*: Event ID starting with `evt_`.
-- **Returns**: `Promise<Event|null>`
-
-#### `EventKit.getAllEvents()`
-Retrieves all stored event records.
-- **Returns**: `Promise<Array<Event>>`
-
-#### `EventKit.updateEvent(eventId, updates)`
-Updates permitted event fields (`name`, `date`, `description`, `location`, `capacity`).
-- **Notes**: Modifying `id` or `createdAt` is forbidden. Capacity cannot be reduced below the current registration count.
-- **Returns**: `Promise<Event>`
-- **Errors**: `EventNotFoundError`, `InvalidEventDataError`, `InvalidEventIdError`
-
-#### `EventKit.deleteEvent(eventId)`
-Deletes an event and cascade-deletes all associated attendees and tickets atomically.
-- **Returns**: `Promise<Event>` (deleted event record)
-- **Errors**: `EventNotFoundError`, `InvalidEventIdError`
-
----
-
-### 7.3 Attendee Management
-
-#### `EventKit.registerAttendee(eventId, attendeeData)`
-Registers an attendee for an event and automatically creates an associated digital ticket.
-- **Parameters**:
-  - `eventId` *(string, required)*: Event identifier.
-  - `attendeeData.name` *(string, required)*: Non-empty attendee name.
-  - `attendeeData.email` *(string, required)*: Valid email address (normalized to lowercase).
-  - `attendeeData.phone` *(string, optional)*: Contact phone number (min 7 digits).
-- **Returns**: `Promise<Attendee & { ticket: Ticket }>`
-- **Errors**: `EventNotFoundError`, `DuplicateRegistrationError`, `EventCapacityReachedError`, `InvalidAttendeeDataError`, `InvalidEmailError`
-
-#### `EventKit.getAttendee(attendeeId)`
-Retrieves an attendee by ID, including their ticket metadata.
-- **Returns**: `Promise<Attendee|null>`
-
-#### `EventKit.getAttendees(eventId)`
-Retrieves all attendees registered for a given event with their ticket metadata.
-- **Returns**: `Promise<Array<Attendee>>`
-- **Errors**: `EventNotFoundError`
-
-#### `EventKit.removeAttendee(attendeeId)`
-Removes an attendee and cascade-deletes their associated ticket.
-- **Returns**: `Promise<Attendee>` (removed record)
-- **Errors**: `AttendeeNotFoundError`
-
----
-
-### 7.4 Ticket Management
-
-#### `EventKit.generateTicket(attendeeId, options)`
-Generates a standalone ticket for an existing attendee (useful for historical attendees or manual issuance).
-- **Parameters**:
-  - `attendeeId` *(string, required)*: Attendee ID.
-  - `options.returnExisting` *(boolean, default: false)*: If true, returns existing ticket if one already exists instead of throwing.
-- **Returns**: `Promise<Ticket>`
-- **Errors**: `AttendeeNotFoundError`, `TicketAlreadyExistsError`
-
-#### `EventKit.getTicket(ticketId)`
-Retrieves a ticket record by its unique ID.
-- **Returns**: `Promise<Ticket|null>`
-
-#### `EventKit.getAllTickets()`
-Retrieves all tickets stored across all events.
-- **Returns**: `Promise<Array<Ticket>>`
-
-#### `EventKit.getTickets(eventId)`
-Retrieves all tickets associated with a specific event ID.
-- **Returns**: `Promise<Array<Ticket>>`
-
-#### `EventKit.validateTicket(eventId, ticketId)`
-Validates ticket authenticity and check-in eligibility without mutating records.
-- **Returns**: `Promise<ValidationResult>`:
-  ```typescript
-  {
-    valid: boolean;
-    status: 'VALID' | 'INVALID' | 'WRONG_EVENT' | 'ALREADY_CHECKED_IN' | 'CANCELLED';
-    message: string;
-    ticket: Ticket | null;
-    attendee: Attendee | null;
-  }
-  ```
-
-#### `EventKit.cancelTicket(ticketId)`
-Cancels an active ticket. Cancelled tickets cannot subsequently be checked in.
-- **Notes**: Tickets that have already been used for check-in cannot be cancelled. Repeated cancellation is idempotent.
-- **Returns**: `Promise<Ticket>`
-- **Errors**: `TicketNotFoundError`, `TicketAlreadyUsedError`
-
-#### `EventKit.generateQRCode(ticketId, options)`
-Generates a scannable QR code encoding `{ ticketId, eventId }`.
-- **Parameters**:
-  - `ticketId` *(string, required)*: Ticket identifier.
-  - `options.format` *(string, default: 'png')*: `'png'` or `'svg'`.
-  - `options.width` *(number, default: 300)*: Image width in pixels.
-  - `options.margin` *(number, default: 2)*: White border margin in modules.
-  - `options.errorCorrectionLevel` *(string, default: 'M')*: `'L'`, `'M'`, `'Q'`, `'H'`.
-  - `options.filePath` *(string, optional)*: Destination file path on disk.
-  - `options.overwrite` *(boolean, default: false)*: Whether to overwrite existing files.
-- **Returns**: `Promise<{ ticketId, eventId, format, mimeType, data: Buffer|string, filePath: string|null }>`
-- **Errors**: `TicketNotFoundError`, `InvalidQRFormatError`, `FileAlreadyExistsError`, `QRGenerationFailedError`
-
----
-
-### 7.5 Check-in Management
-
-#### `EventKit.checkIn(eventId, ticketId)`
-Checks in an attendee using their ticket ID.
-- **Behavior**: Verifies ticket is `ACTIVE`, belongs to `eventId`, and has not been used. Atomically updates ticket to `USED` and attendee `checkedIn` to `true`, recording the arrival timestamp.
-- **Returns**:
-  ```javascript
-  {
-    success: true,
-    status: 'CHECKED_IN',
-    ticketId: 'EK-7F92A1C4D8',
-    eventId: 'evt_...',
-    attendeeId: 'att_...',
-    attendeeName: 'Jane Doe',
-    checkedInAt: '2026-11-16T12:00:00.000Z',
-    message: 'Attendee Jane Doe successfully checked in.'
-  }
-  ```
-- **Errors**: `TicketNotFoundError`, `WrongEventError`, `TicketCancelledError`, `AlreadyCheckedInError`
-
-#### `EventKit.getCheckInStatus(ticketId)`
-Returns the current arrival status of a ticket:
 ```javascript
-{
-  ticketId: string,
-  eventId: string,
-  attendeeId: string,
-  status: 'ACTIVE' | 'USED' | 'CANCELLED',
-  checkedIn: boolean,
-  checkedInAt: string | null
+const EventKit = require('eventkit');
+const {
+  EventNotFoundError,
+  DuplicateRegistrationError,
+  EventCapacityReachedError,
+  AlreadyCheckedInError,
+  TicketCancelledError,
+  WrongEventError
+} = EventKit.errors;
+
+try {
+  await EventKit.checkIn(eventId, ticketId);
+} catch (err) {
+  if (err instanceof AlreadyCheckedInError) {
+    console.warn(`Already admitted at: ${err.context.checkedInAt}`);
+  } else if (err instanceof TicketCancelledError) {
+    console.error('Ticket has been cancelled.');
+  } else if (err instanceof WrongEventError) {
+    console.error('Ticket was issued for a different event.');
+  } else {
+    console.error(`[${err.code}] ${err.message}`);
+  }
 }
 ```
 
-#### `EventKit.getCheckedInAttendees(eventId)`
-Retrieves all attendees registered for the event who have checked in (`checkedIn: true`).
-- **Returns**: `Promise<Array<Attendee>>`
+### Stable Error Codes Reference
+
+| Error Code | Error Class | Description |
+| :--- | :--- | :--- |
+| `NOT_INITIALIZED` | `NotInitializedError` | API method called before `EventKit.initialize()`. |
+| `EVENT_NOT_FOUND` | `EventNotFoundError` | Event ID does not exist in storage. |
+| `ATTENDEE_NOT_FOUND` | `AttendeeNotFoundError` | Attendee ID does not exist in storage. |
+| `TICKET_NOT_FOUND` | `TicketNotFoundError` | Ticket ID does not exist in storage. |
+| `INVALID_EVENT_DATA` | `InvalidEventDataError` | Missing name, invalid date, or negative capacity. |
+| `INVALID_ATTENDEE_DATA`| `InvalidAttendeeDataError` | Missing name or invalid phone number. |
+| `INVALID_EMAIL` | `InvalidEmailError` | Malformed email syntax. |
+| `DUPLICATE_REGISTRATION`| `DuplicateRegistrationError`| Email already registered for this event. |
+| `EVENT_CAPACITY_REACHED`| `EventCapacityReachedError` | Event has reached its configured capacity. |
+| `TICKET_ALREADY_EXISTS`| `TicketAlreadyExistsError` | Attendee already has an issued ticket. |
+| `TICKET_ALREADY_USED` | `TicketAlreadyUsedError` | Attempted to cancel an already used ticket. |
+| `TICKET_CANCELLED` | `TicketCancelledError` | Attempted to check in a cancelled ticket. |
+| `WRONG_EVENT` | `WrongEventError` | Ticket belongs to a different event. |
+| `ALREADY_CHECKED_IN` | `AlreadyCheckedInError` | Ticket has already been checked in. |
+| `INVALID_QR_FORMAT` | `InvalidQRFormatError` | Format other than `'png'` or `'svg'`. |
+| `QR_GENERATION_FAILED`| `QRGenerationFailedError` | QR rendering or disk writing failure. |
+| `UNSUPPORTED_EXPORT_FORMAT`| `UnsupportedExportFormatError`| Format other than `'json'` or `'csv'`. |
+| `FILE_ALREADY_EXISTS` | `FileAlreadyExistsError` | File exists on disk and `overwrite: false`. |
+| `STORAGE_CORRUPTED` | `StorageCorruptedError` | Stored JSON file cannot be parsed. |
+| `STORAGE_ERROR` | `StorageError` | File system permission or I/O failure. |
 
 ---
 
-### 7.6 Attendance Statistics
+## What are the package's limitations?
 
-#### `EventKit.getAttendanceStats(eventId)`
-Calculates real-time attendance statistics directly from stored records:
-```javascript
-{
-  eventId: 'evt_12345',
-  eventName: 'Tech Summit 2026',
-  totalRegistrations: 100,
-  totalCheckedIn: 75,
-  totalPending: 25,
-  attendancePercentage: 75.0,     // (checkedIn / registrations) * 100
-  capacity: 200,                  // null if unconfigured
-  registrationPercentage: 50.0    // (registrations / capacity) * 100, or null
-}
-```
-- Safe handling: Returns `0%` attendance rate when registrations are zero; never divides by zero.
+EventKit is intentionally designed to be lightweight, self-contained, and database-free. When designing your architecture, keep these boundaries in mind:
+
+- **Single-Process Storage**: Write serialization protects against concurrent operations within a single Node.js process. It is not designed for multi-server clusters or distributed file systems without an application-level proxy.
+- **No Built-in Authentication**: Login sessions, RBAC permissions, and admin gates are managed by your host application (Express, Fastify, Next.js, etc.).
+- **No Direct Email/SMS Delivery**: EventKit generates tickets and QR code images; emailing or texting them to attendees is handled by your preferred transport (Nodemailer, SendGrid, Twilio, etc.).
+- **No Built-in Payment Gateway**: Payment collection is handled by your application before calling `EventKit.registerAttendee()`.
+- **External Camera Scanner**: EventKit generates standard scannable QR codes and validates their decoded ticket IDs; camera video stream decoding is handled on the mobile device or browser.
 
 ---
 
-### 7.7 Search Engine
+## Complete API Reference
 
-#### `EventKit.searchAttendees(eventId, query, options)`
-Searches attendees registered for an event by partial name, normalized email, or ticket ID.
-- **Parameters**:
-  - `eventId` *(string, required)*
-  - `query` *(string, optional)*: Case-insensitive substring term.
-  - `options.checkedIn` *(boolean, optional)*: Filter by arrival status (`true` or `false`).
-  - `options.status` *(string, optional)*: Filter by registration status (`'REGISTERED'`).
-- **Returns**: `Promise<Array<Attendee>>`
+### Initialization
+- `await EventKit.initialize(options)`
 
-#### `EventKit.searchTicket(ticketId)`
-Retrieves a ticket along with its associated `attendee` and `event` objects.
-- **Returns**: `Promise<{ ticket, attendee, event } | null>`
+### Event Operations
+- `await EventKit.createEvent(data)`
+- `await EventKit.getEvent(eventId)`
+- `await EventKit.getAllEvents()`
+- `await EventKit.updateEvent(eventId, updates)`
+- `await EventKit.deleteEvent(eventId)` *(cascades to attendees & tickets)*
+
+### Attendee Operations
+- `await EventKit.registerAttendee(eventId, attendeeData)` *(automatically issues ticket)*
+- `await EventKit.getAttendee(attendeeId)`
+- `await EventKit.getAttendees(eventId)`
+- `await EventKit.removeAttendee(attendeeId)` *(cascades to ticket)*
+
+### Ticket Operations
+- `await EventKit.generateTicket(attendeeId, options)` *(standalone ticket creation)*
+- `await EventKit.getTicket(ticketId)`
+- `await EventKit.getAllTickets()`
+- `await EventKit.getTickets(eventId)`
+- `await EventKit.validateTicket(eventId, ticketId)` *(read-only validation)*
+- `await EventKit.cancelTicket(ticketId)`
+- `await EventKit.generateQRCode(ticketId, options)`
+
+### Check-in Operations
+- `await EventKit.checkIn(eventId, ticketId)`
+- `await EventKit.getCheckInStatus(ticketId)`
+- `await EventKit.getCheckedInAttendees(eventId)`
+
+### Analytics & Search
+- `await EventKit.getAttendanceStats(eventId)`
+- `await EventKit.searchAttendees(eventId, query, options)`
+- `await EventKit.searchTicket(ticketId)`
+
+### Export Operations
+- `await EventKit.exportAttendees(eventId, format, options)`
+- `await EventKit.exportEvent(eventId, format, options)`
 
 ---
 
-### 7.8 Data Export
+## Data Models & Lifecycle
 
-#### `EventKit.exportAttendees(eventId, format, options)`
-Exports attendee rosters to JSON or RFC 4180 compliant CSV.
-- **Parameters**:
-  - `eventId` *(string, required)*
-  - `format` *(string, default: 'json')*: `'json'` or `'csv'`.
-  - `options.filePath` *(string, optional)*: Save output directly to file.
-  - `options.overwrite` *(boolean, default: false)*: Allow overwriting existing files.
-- **Returns**: `Promise<string | { content: string, filePath: string }>`
-
-#### `EventKit.exportEvent(eventId, format, options)`
-Exports a complete event snapshot, including metadata, summary statistics, and attendee rosters.
-- **Returns**: `Promise<string | { content: string, filePath: string }>`
-
----
-
-## 8. Data Models
+### Entity Relationship Model
 
 ```mermaid
 erDiagram
@@ -408,189 +463,38 @@ erDiagram
     }
 ```
 
----
-
-## 9. Ticket Lifecycle
+### Ticket Status Lifecycle
 
 ```mermaid
 stateDiagram-v2
     [*] --> ACTIVE : Attendee Registration / generateTicket
-    ACTIVE --> USED : Successful Check-in
-    ACTIVE --> CANCELLED : cancelTicket
-    USED --> [*] : Event Concluded
+    ACTIVE --> USED : EventKit.checkIn()
+    ACTIVE --> CANCELLED : EventKit.cancelTicket()
+    USED --> [*] : Admitted
     CANCELLED --> [*] : Inactive
 ```
 
-- **`ACTIVE`**: Newly issued ticket. Eligible for validation and check-in.
-- **`USED`**: Attendee has arrived and checked in. Cannot be checked in again or cancelled.
-- **`CANCELLED`**: Inactivated ticket. Rejects all check-in attempts.
-
 ---
 
-## 10. QR Code Usage & External Scanning
+## Runnable Examples
 
-EventKit generates scannable QR codes encoding a minimal reference payload:
+The repository includes runnable, documented examples in the [`examples/`](examples/) directory:
 
-```json
-{
-  "ticketId": "EK-7F92A1C4D8",
-  "eventId": "evt_411e8d9f67ed16d50a3b7326"
-}
-```
-
-### External Scanner Integration
-EventKit generates standard QR codes; it is not a camera scanner application. In real-world deployments:
-1. An organizer scans the attendee's QR code using any handheld 2D barcode scanner, mobile camera app, or browser scanner (e.g. using HTML5 camera libraries).
-2. The scanner decodes the JSON payload and extracts `ticketId` and `eventId`.
-3. The scanning application passes the ticket ID to EventKit:
-   ```javascript
-   // Optional pre-check
-   const validation = await EventKit.validateTicket(payload.eventId, payload.ticketId);
-
-   if (validation.valid) {
-     const checkIn = await EventKit.checkIn(payload.eventId, payload.ticketId);
-     console.log(`Welcome, ${checkIn.attendeeName}!`);
-   }
-   ```
-
----
-
-## 11. Validation vs. Check-in
-
-| Feature | `EventKit.validateTicket()` | `EventKit.checkIn()` |
+| Script | Purpose | Command |
 | :--- | :--- | :--- |
-| **Mutation** | Non-destructive (read-only) | Mutates records (`USED`, `checkedIn: true`) |
-| **Record Changes** | None | Updates timestamps and persists to storage |
-| **Primary Use** | Pre-scanning, status inspection, screen display | Actual gate arrival and admission entry |
-| **Return Value** | Structured result object with status code | Success confirmation object or throws error |
+| [`examples/basic-usage.js`](examples/basic-usage.js) | Event creation, attendee registration, capacity checks | `node examples/basic-usage.js` |
+| [`examples/complete-workflow.js`](examples/complete-workflow.js) | Full registration-to-check-in workflow with preserved data | `node examples/complete-workflow.js` |
+| [`examples/ticket-validation.js`](examples/ticket-validation.js) | Testing ticket validation states (`VALID`, `WRONG_EVENT`, etc.) | `node examples/ticket-validation.js` |
+| [`examples/qr-generation.js`](examples/qr-generation.js) | PNG buffer and SVG QR generation with disk saving | `node examples/qr-generation.js` |
+| [`examples/data-export.js`](examples/data-export.js) | CSV (with quotes & commas) and JSON event snapshot export | `node examples/data-export.js` |
 
 ---
 
-## 12. Error Handling
+## License
 
-All errors thrown by EventKit inherit from `EventKitError` and include human-readable messages and stable machine-readable `code` properties.
+EventKit is open-source software licensed under the **[MIT License](LICENSE)**.
 
-```javascript
-const EventKit = require('eventkit');
-const {
-  EventNotFoundError,
-  DuplicateRegistrationError,
-  EventCapacityReachedError,
-  AlreadyCheckedInError,
-  TicketCancelledError,
-  WrongEventError,
-  StorageCorruptedError
-} = EventKit.errors;
-
-try {
-  await EventKit.checkIn(eventId, ticketId);
-} catch (err) {
-  if (err instanceof AlreadyCheckedInError) {
-    console.warn(`Already admitted at: ${err.context.checkedInAt}`);
-  } else if (err instanceof TicketCancelledError) {
-    console.error('Admission denied: Ticket has been cancelled.');
-  } else {
-    console.error(`[${err.code}] ${err.message}`);
-  }
-}
-```
-
-### Stable Error Codes
-| Code | Error Class | Description |
-| :--- | :--- | :--- |
-| `NOT_INITIALIZED` | `NotInitializedError` | API called before `EventKit.initialize()`. |
-| `EVENT_NOT_FOUND` | `EventNotFoundError` | Event ID does not exist in storage. |
-| `ATTENDEE_NOT_FOUND` | `AttendeeNotFoundError` | Attendee ID does not exist. |
-| `TICKET_NOT_FOUND` | `TicketNotFoundError` | Ticket ID does not exist. |
-| `INVALID_EVENT_DATA` | `InvalidEventDataError` | Missing event name, invalid date, or bad capacity. |
-| `INVALID_ATTENDEE_DATA`| `InvalidAttendeeDataError` | Missing name or invalid phone format. |
-| `INVALID_EMAIL` | `InvalidEmailError` | Malformed email address. |
-| `DUPLICATE_REGISTRATION`| `DuplicateRegistrationError`| Email already registered for this event. |
-| `EVENT_CAPACITY_REACHED`| `EventCapacityReachedError` | Event is at maximum registration capacity. |
-| `TICKET_ALREADY_EXISTS`| `TicketAlreadyExistsError` | Attendee already has an issued ticket. |
-| `TICKET_ALREADY_USED` | `TicketAlreadyUsedError` | Attempted to cancel a used ticket. |
-| `TICKET_CANCELLED` | `TicketCancelledError` | Attempted to check in a cancelled ticket. |
-| `WRONG_EVENT` | `WrongEventError` | Ticket belongs to a different event. |
-| `ALREADY_CHECKED_IN` | `AlreadyCheckedInError` | Ticket has already been checked in. |
-| `INVALID_QR_FORMAT` | `InvalidQRFormatError` | Format other than `'png'` or `'svg'`. |
-| `QR_GENERATION_FAILED`| `QRGenerationFailedError` | QR renderer or disk write failure. |
-| `UNSUPPORTED_EXPORT_FORMAT`| `UnsupportedExportFormatError`| Format other than `'json'` or `'csv'`. |
-| `FILE_ALREADY_EXISTS` | `FileAlreadyExistsError` | Target file exists and `overwrite: false`. |
-| `STORAGE_CORRUPTED` | `StorageCorruptedError` | Stored JSON file cannot be parsed. |
-| `STORAGE_ERROR` | `StorageError` | File system permission or I/O failure. |
-
----
-
-## 13. Storage & Persistence Architecture
-
-EventKit stores all records in human-readable JSON files:
 ```text
-eventkit-data/
-├── events.json
-├── attendees.json
-└── tickets.json
+MIT License
+Copyright (c) 2026 Yasir Eqbal
 ```
-
-- **Atomic Writes**: Writes are staged through temporary files (`.<file>.<timestamp>.<random>.tmp`) and renamed into place, preventing incomplete writes during sudden crashes.
-- **Write Serialization**: An internal async mutex serializes write transactions, protecting against in-process race conditions during concurrent registrations or check-ins.
-- **In-Memory Cache**: Fast in-memory queries backed by disk persistence before write promises resolve.
-
----
-
-## 14. Runnable Examples
-
-The package includes standalone, executable examples in the `examples/` directory:
-
-| Example Script | Description | Run Command |
-| :--- | :--- | :--- |
-| [`examples/basic-usage.js`](examples/basic-usage.js) | Basic Phase 1 event creation & registration | `node examples/basic-usage.js` |
-| [`examples/complete-workflow.js`](examples/complete-workflow.js) | Full end-to-end Phase 2 registration-to-check-in workflow | `node examples/complete-workflow.js` |
-| [`examples/ticket-validation.js`](examples/ticket-validation.js) | Standalone validation states (`VALID`, `WRONG_EVENT`, etc.) | `node examples/ticket-validation.js` |
-| [`examples/qr-generation.js`](examples/qr-generation.js) | PNG and SVG QR rendering and file writing | `node examples/qr-generation.js` |
-| [`examples/data-export.js`](examples/data-export.js) | RFC 4180 CSV and JSON data export | `node examples/data-export.js` |
-
----
-
-## 15. Architectural Limitations & Operating Boundaries
-
-EventKit is intentionally designed as a lightweight, zero-database library. Please review these boundaries:
-- **Single-Process Model**: EventKit's concurrency mutex protects writes within a single Node.js process. Multi-server clustering or distributed file systems without an application-level proxy are out of scope.
-- **No Built-in Authentication**: Authentication, user permissions, and admin roles must be managed by the host application.
-- **No Payment Gateway**: Payment collection and ticketing tiers are managed by the host application before invoking `registerAttendee`.
-- **No Direct Mail/SMS Dispatch**: EventKit generates ticket records and QR code buffers; sending emails or text messages is handled by the consuming application.
-- **No Camera Hardware Driver**: EventKit encodes and validates ticket QR payloads; camera feed scanning is performed by the host device.
-
----
-
-## 16. Development & Testing
-
-Run the automated test suite with Vitest:
-
-```bash
-# Run tests
-npm test
-
-# Run tests with code coverage report
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
-```
-
----
-
-## 17. Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code standards, and pull request procedures.
-
----
-
-## 18. Security
-
-For security policies and vulnerability disclosure guidelines, please see [SECURITY.md](SECURITY.md).
-
----
-
-## 19. License
-
-MIT © [Yasir Eqbal](LICENSE)

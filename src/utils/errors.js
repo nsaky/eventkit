@@ -22,7 +22,7 @@ class EventKitError extends Error {
   }
 }
 
-// Phase 1 Errors
+// Core Domain Errors
 class EventNotFoundError extends EventKitError {
   constructor(eventId, context = {}) {
     super(`Event with ID '${eventId}' was not found.`, 'EVENT_NOT_FOUND', { eventId, ...context });
@@ -106,7 +106,7 @@ class NotInitializedError extends EventKitError {
   }
 }
 
-// Phase 2 Errors
+// Ticketing, Arrival & Service Errors
 class TicketNotFoundError extends EventKitError {
   constructor(ticketId, context = {}) {
     super(`Ticket with ID '${ticketId}' was not found.`, 'TICKET_NOT_FOUND', { ticketId, ...context });
@@ -235,7 +235,7 @@ module.exports = {
   StorageCorruptedError,
   NotInitializedError,
 
-  // Phase 2 errors
+  // Ticketing, Arrival & Service Errors
   TicketNotFoundError,
   InvalidTicketIdError,
   TicketAlreadyExistsError,

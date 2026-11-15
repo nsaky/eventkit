@@ -1,5 +1,6 @@
 node_modules/
 eventkit-data/
+eventkit-workflow-example-data/
 eventkit-phase2-example-data/
 *-data/
 *.tmp

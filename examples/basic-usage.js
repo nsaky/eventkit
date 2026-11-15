@@ -7,7 +7,7 @@ const EventKit = require('../src/index');
 async function main() {
   const exampleStoragePath = path.resolve(__dirname, '../eventkit-example-data');
 
-  console.log('=== EventKit Phase 1: Basic Usage Demonstration ===\n');
+  console.log('=== EventKit: Basic Usage Demonstration ===\n');
 
   try {
     // 1. Initialize EventKit with a custom storage path

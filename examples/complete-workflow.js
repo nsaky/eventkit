@@ -4,11 +4,11 @@ const path = require('path');
 const EventKit = require('../src/index');
 
 async function main() {
-  const exampleStoragePath = path.resolve(__dirname, '../eventkit-phase2-example-data');
+  const exampleStoragePath = path.resolve(__dirname, '../eventkit-workflow-example-data');
   const qrOutputPath = path.join(exampleStoragePath, 'ticket-qr.png');
   const csvOutputPath = path.join(exampleStoragePath, 'attendees-export.csv');
 
-  console.log('=== EventKit Phase 2: Complete Workflow Demonstration ===\n');
+  console.log('=== EventKit: Complete Workflow Demonstration ===\n');
 
   // 1. Initialize EventKit
   console.log(`1. Initializing EventKit at storage directory: ${exampleStoragePath}`);
@@ -106,7 +106,7 @@ async function main() {
   const jsonExport = await EventKit.exportEvent(event.id, 'json');
   console.log(`    ✓ JSON snapshot exported (${jsonExport.length} characters)\n`);
 
-  console.log('=== Complete Phase 2 demonstration finished successfully! ===');
+  console.log('=== Complete demonstration finished successfully! ===');
   console.log(`All demonstration data preserved in: ${exampleStoragePath}`);
 }
 
