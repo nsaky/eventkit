@@ -1,0 +1,41 @@
+{
+  "name": "eventkit",
+  "version": "1.0.0",
+  "description": "A lightweight Node.js toolkit for event registration, digital ticketing and attendance management with persistent JSON storage.",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nsaky/eventkit.git"
+  },
+  "keywords": [
+    "eventkit",
+    "event-management",
+    "registration",
+    "attendance",
+    "tickets"
+  ],
+  "author": "Yasir Eqbal",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nsaky/eventkit/issues"
+  },
+  "homepage": "https://github.com/nsaky/eventkit#readme",
+  "devDependencies": {
+    "vitest": "^4.1.12"
+  }
+}
