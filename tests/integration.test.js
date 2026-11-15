@@ -41,6 +41,14 @@ describe('EventKit Integration Tests', () => {
       .rejects.toThrow(NotInitializedError);
     await expect(EventKit.getAttendees('evt_1234567890abcdef12345678'))
       .rejects.toThrow(NotInitializedError);
+    await expect(EventKit.getAllTickets())
+      .rejects.toThrow(NotInitializedError);
+    await expect(EventKit.getTickets('evt_1234567890abcdef12345678'))
+      .rejects.toThrow(NotInitializedError);
+    await expect(EventKit.cancelTicket('EK-1234567890'))
+      .rejects.toThrow(NotInitializedError);
+    await expect(EventKit.exportEvent('evt_1234567890abcdef12345678', 'json'))
+      .rejects.toThrow(NotInitializedError);
   });
 
   it('executes the full end-to-end event and attendee lifecycle', async () => {
@@ -85,6 +93,12 @@ describe('EventKit Integration Tests', () => {
     const attendees = await EventKit.getAttendees(event.id);
     expect(attendees.length).toBe(2);
     expect(attendees.map(a => a.id)).toEqual([att1.id, att2.id]);
+
+    // Retrieve all tickets and tickets for event
+    const allTickets = await EventKit.getAllTickets();
+    expect(allTickets.length).toBe(2);
+    const eventTickets = await EventKit.getTickets(event.id);
+    expect(eventTickets.length).toBe(2);
 
     // 6. Attempt duplicate registration (same normalized email)
     await expect(EventKit.registerAttendee(event.id, {

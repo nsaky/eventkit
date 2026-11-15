@@ -144,4 +144,8 @@ describe('ExportService', () => {
     expect(storage.getAttendees()).toEqual(beforeAttendees);
     expect(storage.getTickets()).toEqual(beforeTickets);
   });
+
+  it('throws an error if ExportService is instantiated without storage', () => {
+    expect(() => new ExportService()).toThrow('Storage instance is required for ExportService.');
+  });
 });

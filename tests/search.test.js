@@ -119,4 +119,8 @@ describe('SearchService', () => {
     await expect(searchService.searchAttendees('evt_000000000000000000000000'))
       .rejects.toThrow(EventNotFoundError);
   });
+
+  it('throws an error if SearchService is instantiated without storage', () => {
+    expect(() => new SearchService()).toThrow('Storage instance is required for SearchService.');
+  });
 });

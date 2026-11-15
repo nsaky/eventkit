@@ -174,4 +174,26 @@ describe('TicketManager & Automatic Ticketing', () => {
     await expect(ticketManager.getTicket('invalid')).rejects.toThrow(InvalidTicketIdError);
     await expect(ticketManager.cancelTicket('')).rejects.toThrow(InvalidTicketIdError);
   });
+
+  it('retrieves all tickets and tickets filtered by eventId', async () => {
+    const secondEvent = await eventManager.createEvent({ name: 'Event 2', date: '2026-12-01' });
+
+    const att1 = await attendeeManager.registerAttendee(sampleEvent.id, { name: 'User 1', email: 'u1@ex.com' });
+    const att2 = await attendeeManager.registerAttendee(secondEvent.id, { name: 'User 2', email: 'u2@ex.com' });
+
+    const allTickets = await ticketManager.getAllTickets();
+    expect(allTickets.length).toBe(2);
+
+    const event1Tickets = await ticketManager.getTicketsByEventId(sampleEvent.id);
+    expect(event1Tickets.length).toBe(1);
+    expect(event1Tickets[0].id).toBe(att1.ticket.id);
+
+    const event2Tickets = await ticketManager.getTicketsByEventId(secondEvent.id);
+    expect(event2Tickets.length).toBe(1);
+    expect(event2Tickets[0].id).toBe(att2.ticket.id);
+  });
+
+  it('throws an error if TicketManager is instantiated without storage', () => {
+    expect(() => new TicketManager()).toThrow('Storage instance is required for TicketManager.');
+  });
 });

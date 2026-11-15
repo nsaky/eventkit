@@ -228,4 +228,8 @@ describe('EventManager', () => {
     await expect(eventManager.deleteEvent('evt_nonexistent1234567890'))
       .rejects.toThrow(EventNotFoundError);
   });
+
+  it('throws an error if EventManager is instantiated without storage', () => {
+    expect(() => new EventManager()).toThrow('Storage instance is required for EventManager.');
+  });
 });

@@ -117,4 +117,8 @@ describe('AttendanceStatsService', () => {
     await expect(statsService.getAttendanceStats('evt_000000000000000000000000'))
       .rejects.toThrow(EventNotFoundError);
   });
+
+  it('throws an error if AttendanceStatsService is instantiated without storage', () => {
+    expect(() => new AttendanceStatsService()).toThrow('Storage instance is required for AttendanceStatsService.');
+  });
 });

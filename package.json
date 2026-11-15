@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A lightweight Node.js toolkit for event registration, digital ticketing and attendance management with persistent JSON storage.",
   "main": "src/index.js",
+  "type": "commonjs",
   "exports": {
     ".": "./src/index.js",
     "./package.json": "./package.json"
@@ -10,13 +11,16 @@
   "files": [
     "src",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "repository": {
     "type": "git",
@@ -27,7 +31,9 @@
     "event-management",
     "registration",
     "attendance",
-    "tickets"
+    "tickets",
+    "qr-code",
+    "check-in"
   ],
   "author": "Yasir Eqbal",
   "license": "MIT",
@@ -35,12 +41,13 @@
     "url": "https://github.com/nsaky/eventkit/issues"
   },
   "homepage": "https://github.com/nsaky/eventkit#readme",
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.12",
     "jsqr": "^1.4.0",
     "pngjs": "^7.0.0",
     "vitest": "^4.1.12"
-  },
-  "dependencies": {
-    "qrcode": "^1.5.4"
   }
 }

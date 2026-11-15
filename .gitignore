@@ -1,10 +1,12 @@
 node_modules/
 eventkit-data/
+eventkit-phase2-example-data/
 *-data/
 *.tmp
 *.tmp.*
 .DS_Store
 coverage/
+*.tgz
 .vitest/
 *.log
 .env

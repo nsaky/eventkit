@@ -132,6 +132,16 @@ class EventKit {
     return this._ticketManager.getTicket(ticketId);
   }
 
+  async getAllTickets() {
+    this._assertInitialized();
+    return this._ticketManager.getAllTickets();
+  }
+
+  async getTickets(eventId) {
+    this._assertInitialized();
+    return this._ticketManager.getTicketsByEventId(eventId);
+  }
+
   async validateTicket(eventId, ticketId) {
     this._assertInitialized();
     return this._ticketManager.validateTicket(eventId, ticketId);
@@ -233,6 +243,8 @@ const api = {
   removeAttendee: defaultInstance.removeAttendee.bind(defaultInstance),
   generateTicket: defaultInstance.generateTicket.bind(defaultInstance),
   getTicket: defaultInstance.getTicket.bind(defaultInstance),
+  getAllTickets: defaultInstance.getAllTickets.bind(defaultInstance),
+  getTickets: defaultInstance.getTickets.bind(defaultInstance),
   validateTicket: defaultInstance.validateTicket.bind(defaultInstance),
   cancelTicket: defaultInstance.cancelTicket.bind(defaultInstance),
   generateQRCode: defaultInstance.generateQRCode.bind(defaultInstance),

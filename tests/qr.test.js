@@ -150,4 +150,8 @@ describe('QRService', () => {
       qrService.generateQRCode('EK-0000000000')
     ).rejects.toThrow(TicketNotFoundError);
   });
+
+  it('throws an error if QRService is instantiated without storage', () => {
+    expect(() => new QRService()).toThrow('Storage instance is required for QRService.');
+  });
 });

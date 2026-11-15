@@ -228,5 +228,9 @@ describe('CheckInManager & Ticket Validation', () => {
       expect(checkedInList[0].id).toBe(attendeeA.id);
       expect(checkedInList[0].checkedIn).toBe(true);
     });
+
+    it('throws an error if CheckInManager is instantiated without storage', () => {
+      expect(() => new CheckInManager()).toThrow('Storage instance is required for CheckInManager.');
+    });
   });
 });

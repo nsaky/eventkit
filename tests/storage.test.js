@@ -3,6 +3,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const os = require('os');
+const Storage = require('../src/storage/storage');
 const JsonStorage = require('../src/storage/json-storage');
 const {
   StorageCorruptedError,
@@ -206,5 +207,13 @@ describe('JsonStorage', () => {
       // Restore permissions so cleanup works
       await fs.chmod(tempDir, 0o777);
     }
+  });
+
+  it('base Storage class methods throw unimplemented errors', async () => {
+    const baseStorage = new Storage();
+    await expect(baseStorage.initialize()).rejects.toThrow('Method initialize() must be implemented.');
+    await expect(baseStorage.load()).rejects.toThrow('Method load() must be implemented.');
+    await expect(baseStorage.close()).rejects.toThrow('Method close() must be implemented.');
+    await expect(baseStorage.runExclusive(() => {})).rejects.toThrow('Method runExclusive() must be implemented.');
   });
 });

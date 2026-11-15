@@ -233,4 +233,8 @@ describe('AttendeeManager', () => {
     const retrieved = await newAttendeeManager.getAttendee(created.id);
     expect(retrieved).toEqual(created);
   });
+
+  it('throws an error if AttendeeManager is instantiated without storage', () => {
+    expect(() => new AttendeeManager()).toThrow('Storage instance is required for AttendeeManager.');
+  });
 });
