@@ -58,8 +58,32 @@ function generateAttendeeId(existingRecords) {
   return id;
 }
 
+/**
+ * Generates a ticket ID ('EK-<10-uppercase-hex-chars>').
+ * Guarantees uniqueness against a set or collection of existing ticket IDs.
+ *
+ * @param {Set<string>|Array<{id: string}>} [existingRecords] - Optional set or list of existing records to check for collisions.
+ * @returns {string} Unique ticket ID.
+ */
+function generateTicketId(existingRecords) {
+  let id;
+  const existingSet = existingRecords instanceof Set
+    ? existingRecords
+    : Array.isArray(existingRecords)
+      ? new Set(existingRecords.map(r => r.id))
+      : null;
+
+  do {
+    const randomHex = crypto.randomBytes(5).toString('hex').toUpperCase();
+    id = `EK-${randomHex}`;
+  } while (existingSet && existingSet.has(id));
+
+  return id;
+}
+
 module.exports = {
   generateId,
   generateEventId,
-  generateAttendeeId
+  generateAttendeeId,
+  generateTicketId
 };

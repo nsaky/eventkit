@@ -22,6 +22,7 @@ class EventKitError extends Error {
   }
 }
 
+// Phase 1 Errors
 class EventNotFoundError extends EventKitError {
   constructor(eventId, context = {}) {
     super(`Event with ID '${eventId}' was not found.`, 'EVENT_NOT_FOUND', { eventId, ...context });
@@ -105,6 +106,121 @@ class NotInitializedError extends EventKitError {
   }
 }
 
+// Phase 2 Errors
+class TicketNotFoundError extends EventKitError {
+  constructor(ticketId, context = {}) {
+    super(`Ticket with ID '${ticketId}' was not found.`, 'TICKET_NOT_FOUND', { ticketId, ...context });
+  }
+}
+
+class InvalidTicketIdError extends EventKitError {
+  constructor(ticketId, message, context = {}) {
+    super(
+      message || `Invalid ticket ID format or value: '${ticketId}'.`,
+      'INVALID_TICKET_ID',
+      { ticketId, ...context }
+    );
+  }
+}
+
+class TicketAlreadyExistsError extends EventKitError {
+  constructor(attendeeId, ticketId, context = {}) {
+    super(
+      `Attendee '${attendeeId}' already has an associated ticket '${ticketId}'.`,
+      'TICKET_ALREADY_EXISTS',
+      { attendeeId, ticketId, ...context }
+    );
+  }
+}
+
+class TicketAlreadyUsedError extends EventKitError {
+  constructor(ticketId, context = {}) {
+    super(
+      `Ticket '${ticketId}' has already been used and cannot be cancelled or re-used.`,
+      'TICKET_ALREADY_USED',
+      { ticketId, ...context }
+    );
+  }
+}
+
+class TicketCancelledError extends EventKitError {
+  constructor(ticketId, context = {}) {
+    super(`Ticket '${ticketId}' has been cancelled.`, 'TICKET_CANCELLED', { ticketId, ...context });
+  }
+}
+
+class WrongEventError extends EventKitError {
+  constructor(ticketId, ticketEventId, targetEventId, context = {}) {
+    super(
+      `Ticket '${ticketId}' belongs to event '${ticketEventId}', not '${targetEventId}'.`,
+      'WRONG_EVENT',
+      { ticketId, ticketEventId, targetEventId, ...context }
+    );
+  }
+}
+
+class AlreadyCheckedInError extends EventKitError {
+  constructor(ticketId, checkedInAt, context = {}) {
+    super(
+      `Ticket '${ticketId}' has already been checked in (at ${checkedInAt}).`,
+      'ALREADY_CHECKED_IN',
+      { ticketId, checkedInAt, ...context }
+    );
+  }
+}
+
+class InvalidQRFormatError extends EventKitError {
+  constructor(format, context = {}) {
+    super(
+      `Unsupported QR format '${format}'. Supported formats are 'png' and 'svg'.`,
+      'INVALID_QR_FORMAT',
+      { format, ...context }
+    );
+  }
+}
+
+class QRGenerationFailedError extends EventKitError {
+  constructor(message, cause, context = {}) {
+    super(message || 'Failed to generate QR code.', 'QR_GENERATION_FAILED', context, cause);
+  }
+}
+
+class UnsupportedExportFormatError extends EventKitError {
+  constructor(format, context = {}) {
+    super(
+      `Unsupported export format '${format}'. Supported formats are 'json' and 'csv'.`,
+      'UNSUPPORTED_EXPORT_FORMAT',
+      { format, ...context }
+    );
+  }
+}
+
+class ExportFailedError extends EventKitError {
+  constructor(message, cause, context = {}) {
+    super(message || 'Failed to export data.', 'EXPORT_FAILED', context, cause);
+  }
+}
+
+class FileAlreadyExistsError extends EventKitError {
+  constructor(filePath, context = {}) {
+    super(
+      `File already exists at '${filePath}'. Set 'overwrite: true' to overwrite existing files.`,
+      'FILE_ALREADY_EXISTS',
+      { filePath, ...context }
+    );
+  }
+}
+
+class InvalidExportPathError extends EventKitError {
+  constructor(filePath, message, context = {}) {
+    super(
+      message || `Invalid export file path: '${filePath}'.`,
+      'INVALID_EXPORT_PATH',
+      { filePath, ...context }
+    );
+  }
+}
+
 module.exports = {
   EventKitError,
   EventNotFoundError,
@@ -117,5 +233,20 @@ module.exports = {
   InvalidEventIdError,
   StorageError,
   StorageCorruptedError,
-  NotInitializedError
+  NotInitializedError,
+
+  // Phase 2 errors
+  TicketNotFoundError,
+  InvalidTicketIdError,
+  TicketAlreadyExistsError,
+  TicketAlreadyUsedError,
+  TicketCancelledError,
+  WrongEventError,
+  AlreadyCheckedInError,
+  InvalidQRFormatError,
+  QRGenerationFailedError,
+  UnsupportedExportFormatError,
+  ExportFailedError,
+  FileAlreadyExistsError,
+  InvalidExportPathError
 };

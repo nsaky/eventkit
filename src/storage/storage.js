@@ -15,7 +15,7 @@ class Storage {
 
   /**
    * Loads all records from storage into memory.
-   * @returns {Promise<{events: Array<object>, attendees: Array<object>}>}
+   * @returns {Promise<{events: Array<object>, attendees: Array<object>, tickets: Array<object>}>}
    */
   async load() {
     throw new Error('Method load() must be implemented.');

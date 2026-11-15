@@ -3,18 +3,31 @@
 const JsonStorage = require('./storage/json-storage');
 const EventManager = require('./core/event');
 const AttendeeManager = require('./core/attendee');
+const TicketManager = require('./core/ticket');
+const CheckInManager = require('./core/checkin');
+const QRService = require('./services/qr');
+const AttendanceStatsService = require('./services/stats');
+const SearchService = require('./services/search');
+const ExportService = require('./services/export');
 const errors = require('./utils/errors');
 const { NotInitializedError } = errors;
 
 /**
- * EventKit main class providing a unified asynchronous API for event
- * and attendee management with persistent JSON file storage.
+ * EventKit main class providing a unified asynchronous API for event registration,
+ * ticketing, QR code generation, ticket validation, check-in management, attendance
+ * tracking, search, and data export with persistent JSON file storage.
  */
 class EventKit {
   constructor(options = {}) {
     this._storage = null;
     this._eventManager = null;
     this._attendeeManager = null;
+    this._ticketManager = null;
+    this._checkInManager = null;
+    this._qrService = null;
+    this._statsService = null;
+    this._searchService = null;
+    this._exportService = null;
     this._isInitialized = false;
 
     if (options.storagePath) {
@@ -23,7 +36,7 @@ class EventKit {
   }
 
   /**
-   * Initializes the persistent JSON storage engine.
+   * Initializes the persistent JSON storage engine and all domain services.
    *
    * @param {object} [options={}] - Configuration options.
    * @param {string} [options.storagePath='./eventkit-data'] - Path to storage directory.
@@ -39,6 +52,12 @@ class EventKit {
     await this._storage.initialize({ storagePath });
     this._eventManager = new EventManager(this._storage);
     this._attendeeManager = new AttendeeManager(this._storage);
+    this._ticketManager = new TicketManager(this._storage);
+    this._checkInManager = new CheckInManager(this._storage);
+    this._qrService = new QRService(this._storage);
+    this._statsService = new AttendanceStatsService(this._storage);
+    this._searchService = new SearchService(this._storage);
+    this._exportService = new ExportService(this._storage);
     this._isInitialized = true;
   }
 
@@ -47,63 +66,33 @@ class EventKit {
    * @private
    */
   _assertInitialized() {
-    if (!this._isInitialized || !this._storage || !this._eventManager || !this._attendeeManager) {
+    if (!this._isInitialized || !this._storage) {
       throw new NotInitializedError();
     }
   }
 
   // --- Event Management Methods ---
 
-  /**
-   * Creates a new event record.
-   *
-   * @param {object} data - Event parameters (name, date, description, location, capacity).
-   * @returns {Promise<object>} The created event record.
-   */
   async createEvent(data) {
     this._assertInitialized();
     return this._eventManager.createEvent(data);
   }
 
-  /**
-   * Retrieves an event by its unique ID.
-   *
-   * @param {string} eventId - Unique event identifier.
-   * @returns {Promise<object|null>} Safe copy of event or null if not found.
-   */
   async getEvent(eventId) {
     this._assertInitialized();
     return this._eventManager.getEvent(eventId);
   }
 
-  /**
-   * Retrieves all event records.
-   *
-   * @returns {Promise<Array<object>>} Safe list of all events.
-   */
   async getAllEvents() {
     this._assertInitialized();
     return this._eventManager.getAllEvents();
   }
 
-  /**
-   * Updates permitted fields of an existing event.
-   *
-   * @param {string} eventId - ID of event to update.
-   * @param {object} updates - Permitted updates (name, date, description, location, capacity).
-   * @returns {Promise<object>} The updated event record.
-   */
   async updateEvent(eventId, updates) {
     this._assertInitialized();
     return this._eventManager.updateEvent(eventId, updates);
   }
 
-  /**
-   * Deletes an event and cascade-deletes all associated attendees.
-   *
-   * @param {string} eventId - ID of event to delete.
-   * @returns {Promise<object>} The deleted event record.
-   */
   async deleteEvent(eventId) {
     this._assertInitialized();
     return this._eventManager.deleteEvent(eventId);
@@ -111,49 +100,99 @@ class EventKit {
 
   // --- Attendee Management Methods ---
 
-  /**
-   * Registers a new attendee for an event.
-   *
-   * @param {string} eventId - Unique event identifier.
-   * @param {object} attendeeData - Attendee input data (name, email, optional phone).
-   * @returns {Promise<object>} The registered attendee record.
-   */
   async registerAttendee(eventId, attendeeData) {
     this._assertInitialized();
     return this._attendeeManager.registerAttendee(eventId, attendeeData);
   }
 
-  /**
-   * Retrieves an attendee by attendee ID.
-   *
-   * @param {string} attendeeId - Unique attendee identifier.
-   * @returns {Promise<object|null>} Safe copy of attendee or null if not found.
-   */
   async getAttendee(attendeeId) {
     this._assertInitialized();
     return this._attendeeManager.getAttendee(attendeeId);
   }
 
-  /**
-   * Retrieves all attendees registered for a specific event.
-   *
-   * @param {string} eventId - Unique event identifier.
-   * @returns {Promise<Array<object>>} Safe list of attendees for the event.
-   */
   async getAttendees(eventId) {
     this._assertInitialized();
     return this._attendeeManager.getAttendees(eventId);
   }
 
-  /**
-   * Removes an attendee record by attendee ID.
-   *
-   * @param {string} attendeeId - Unique attendee identifier.
-   * @returns {Promise<object>} The removed attendee record.
-   */
   async removeAttendee(attendeeId) {
     this._assertInitialized();
     return this._attendeeManager.removeAttendee(attendeeId);
+  }
+
+  // --- Ticket Management Methods ---
+
+  async generateTicket(attendeeId, options) {
+    this._assertInitialized();
+    return this._ticketManager.generateTicket(attendeeId, options);
+  }
+
+  async getTicket(ticketId) {
+    this._assertInitialized();
+    return this._ticketManager.getTicket(ticketId);
+  }
+
+  async validateTicket(eventId, ticketId) {
+    this._assertInitialized();
+    return this._ticketManager.validateTicket(eventId, ticketId);
+  }
+
+  async cancelTicket(ticketId) {
+    this._assertInitialized();
+    return this._ticketManager.cancelTicket(ticketId);
+  }
+
+  async generateQRCode(ticketId, options) {
+    this._assertInitialized();
+    return this._qrService.generateQRCode(ticketId, options);
+  }
+
+  // --- Check-in Management Methods ---
+
+  async checkIn(eventId, ticketId) {
+    this._assertInitialized();
+    return this._checkInManager.checkIn(eventId, ticketId);
+  }
+
+  async getCheckInStatus(ticketId) {
+    this._assertInitialized();
+    return this._checkInManager.getCheckInStatus(ticketId);
+  }
+
+  async getCheckedInAttendees(eventId) {
+    this._assertInitialized();
+    return this._checkInManager.getCheckedInAttendees(eventId);
+  }
+
+  // --- Attendance Statistics Methods ---
+
+  async getAttendanceStats(eventId) {
+    this._assertInitialized();
+    return this._statsService.getAttendanceStats(eventId);
+  }
+
+  // --- Search Methods ---
+
+  async searchAttendees(eventId, query, options) {
+    this._assertInitialized();
+    return this._searchService.searchAttendees(eventId, query, options);
+  }
+
+  async searchTicket(ticketId) {
+    this._assertInitialized();
+    return this._searchService.searchTicket(ticketId);
+  }
+
+  // --- Export Methods ---
+
+  async exportAttendees(eventId, format, options) {
+    this._assertInitialized();
+    return this._exportService.exportAttendees(eventId, format, options);
+  }
+
+  async exportEvent(eventId, format, options) {
+    this._assertInitialized();
+    return this._exportService.exportEvent(eventId, format, options);
   }
 
   /**
@@ -167,6 +206,12 @@ class EventKit {
     this._storage = null;
     this._eventManager = null;
     this._attendeeManager = null;
+    this._ticketManager = null;
+    this._checkInManager = null;
+    this._qrService = null;
+    this._statsService = null;
+    this._searchService = null;
+    this._exportService = null;
     this._isInitialized = false;
   }
 }
@@ -174,7 +219,7 @@ class EventKit {
 // Default singleton instance
 const defaultInstance = new EventKit();
 
-// Bind methods so they can be destructured if needed
+// Bind methods so they can be destructured or called directly
 const api = {
   initialize: defaultInstance.initialize.bind(defaultInstance),
   createEvent: defaultInstance.createEvent.bind(defaultInstance),
@@ -186,6 +231,19 @@ const api = {
   getAttendee: defaultInstance.getAttendee.bind(defaultInstance),
   getAttendees: defaultInstance.getAttendees.bind(defaultInstance),
   removeAttendee: defaultInstance.removeAttendee.bind(defaultInstance),
+  generateTicket: defaultInstance.generateTicket.bind(defaultInstance),
+  getTicket: defaultInstance.getTicket.bind(defaultInstance),
+  validateTicket: defaultInstance.validateTicket.bind(defaultInstance),
+  cancelTicket: defaultInstance.cancelTicket.bind(defaultInstance),
+  generateQRCode: defaultInstance.generateQRCode.bind(defaultInstance),
+  checkIn: defaultInstance.checkIn.bind(defaultInstance),
+  getCheckInStatus: defaultInstance.getCheckInStatus.bind(defaultInstance),
+  getCheckedInAttendees: defaultInstance.getCheckedInAttendees.bind(defaultInstance),
+  getAttendanceStats: defaultInstance.getAttendanceStats.bind(defaultInstance),
+  searchAttendees: defaultInstance.searchAttendees.bind(defaultInstance),
+  searchTicket: defaultInstance.searchTicket.bind(defaultInstance),
+  exportAttendees: defaultInstance.exportAttendees.bind(defaultInstance),
+  exportEvent: defaultInstance.exportEvent.bind(defaultInstance),
   reset: defaultInstance.reset.bind(defaultInstance),
 
   // Allow class instantiation

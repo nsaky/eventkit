@@ -118,7 +118,7 @@ class EventManager {
   }
 
   /**
-   * Deletes an event and cascade-deletes all associated attendees.
+   * Deletes an event and cascade-deletes all associated attendees and tickets.
    *
    * @param {string} eventId - ID of event to delete.
    * @returns {Promise<object>} The deleted event record.
@@ -140,9 +140,14 @@ class EventManager {
       const allAttendees = this._storage.getAttendees();
       const remainingAttendees = allAttendees.filter(a => a.eventId !== eventId);
 
+      // Cascade remove associated tickets
+      const allTickets = this._storage.getTickets();
+      const remainingTickets = allTickets.filter(t => t.eventId !== eventId);
+
       await this._storage.saveBatch({
         events: remainingEvents,
-        attendees: remainingAttendees
+        attendees: remainingAttendees,
+        tickets: remainingTickets
       });
 
       return deletedEvent;

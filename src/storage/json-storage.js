@@ -73,12 +73,14 @@ class JsonStorage extends Storage {
     this._resolvedPath = null;
     this._eventsFilePath = null;
     this._attendeesFilePath = null;
+    this._ticketsFilePath = null;
     this._initialized = false;
     this._lock = new AsyncLock();
 
     // In-memory record collections
     this._events = [];
     this._attendees = [];
+    this._tickets = [];
 
     if (options.storagePath) {
       this._configurePath(options.storagePath);
@@ -98,6 +100,7 @@ class JsonStorage extends Storage {
 
     this._eventsFilePath = path.join(this._resolvedPath, 'events.json');
     this._attendeesFilePath = path.join(this._resolvedPath, 'attendees.json');
+    this._ticketsFilePath = path.join(this._resolvedPath, 'tickets.json');
   }
 
   /**
@@ -118,6 +121,7 @@ class JsonStorage extends Storage {
 
   /**
    * Initializes storage: ensures directory and files exist, loads data into memory.
+   * Preserves existing events and attendees, creating tickets.json if missing.
    *
    * @param {object} [options={}] - Configuration options.
    * @param {string} [options.storagePath] - Custom directory path.
@@ -134,6 +138,7 @@ class JsonStorage extends Storage {
       if (this._initialized && this._resolvedPath !== resolvedTarget) {
         this._events = [];
         this._attendees = [];
+        this._tickets = [];
         this._initialized = false;
       }
 
@@ -143,9 +148,10 @@ class JsonStorage extends Storage {
         // Ensure directory exists
         await fs.mkdir(this._resolvedPath, { recursive: true });
 
-        // Load or initialize files
+        // Load or initialize files (preserves existing files, creates missing with [])
         this._events = await this._loadOrInitFile(this._eventsFilePath);
         this._attendees = await this._loadOrInitFile(this._attendeesFilePath);
+        this._tickets = await this._loadOrInitFile(this._ticketsFilePath);
         this._initialized = true;
       } catch (err) {
         if (err instanceof StorageCorruptedError || err instanceof StorageError) {
@@ -295,6 +301,48 @@ class JsonStorage extends Storage {
     return deepClone(filtered);
   }
 
+  /**
+   * Retrieves a copy of all tickets in memory.
+   * @returns {Array<object>} Safe copy of tickets.
+   */
+  getTickets() {
+    this._assertInitialized();
+    return deepClone(this._tickets);
+  }
+
+  /**
+   * Retrieves a ticket by its ID.
+   * @param {string} ticketId
+   * @returns {object|null} Safe copy of ticket or null.
+   */
+  getTicketById(ticketId) {
+    this._assertInitialized();
+    const ticket = this._tickets.find(t => t.id === ticketId);
+    return ticket ? deepClone(ticket) : null;
+  }
+
+  /**
+   * Retrieves a ticket by attendee ID.
+   * @param {string} attendeeId
+   * @returns {object|null} Safe copy of ticket or null.
+   */
+  getTicketByAttendeeId(attendeeId) {
+    this._assertInitialized();
+    const ticket = this._tickets.find(t => t.attendeeId === attendeeId);
+    return ticket ? deepClone(ticket) : null;
+  }
+
+  /**
+   * Retrieves all tickets for a given event ID.
+   * @param {string} eventId
+   * @returns {Array<object>} Safe copy of tickets for event.
+   */
+  getTicketsByEventId(eventId) {
+    this._assertInitialized();
+    const filtered = this._tickets.filter(t => t.eventId === eventId);
+    return deepClone(filtered);
+  }
+
   // --- Persistence Mutations (Under Write Lock) ---
 
   /**
@@ -322,16 +370,29 @@ class JsonStorage extends Storage {
   }
 
   /**
-   * Atomically persists changes to both events and attendees collections.
-   * Writes both temporary files first, then renames. In-memory state is only
+   * Atomically persists updated tickets list.
+   * @param {Array<object>} newTickets
+   * @returns {Promise<void>}
+   */
+  async saveTickets(newTickets) {
+    this._assertInitialized();
+    const serialized = JSON.stringify(newTickets, null, 2) + '\n';
+    await this._atomicWrite(this._ticketsFilePath, serialized);
+    this._tickets = deepClone(newTickets);
+  }
+
+  /**
+   * Atomically persists changes across events, attendees, and tickets collections.
+   * Writes all temporary files first, then renames. In-memory state is only
    * committed once all file operations complete.
    *
    * @param {object} batch
    * @param {Array<object>} [batch.events]
    * @param {Array<object>} [batch.attendees]
+   * @param {Array<object>} [batch.tickets]
    * @returns {Promise<void>}
    */
-  async saveBatch({ events, attendees }) {
+  async saveBatch({ events, attendees, tickets }) {
     this._assertInitialized();
 
     const writes = [];
@@ -349,6 +410,14 @@ class JsonStorage extends Storage {
         content: JSON.stringify(attendees, null, 2) + '\n',
         inMemoryTarget: 'attendees',
         data: attendees
+      });
+    }
+    if (tickets !== undefined) {
+      writes.push({
+        targetPath: this._ticketsFilePath,
+        content: JSON.stringify(tickets, null, 2) + '\n',
+        inMemoryTarget: 'tickets',
+        data: tickets
       });
     }
 
@@ -376,6 +445,8 @@ class JsonStorage extends Storage {
           this._events = deepClone(s.data);
         } else if (s.inMemoryTarget === 'attendees') {
           this._attendees = deepClone(s.data);
+        } else if (s.inMemoryTarget === 'tickets') {
+          this._tickets = deepClone(s.data);
         }
       }
     } catch (err) {
@@ -401,11 +472,13 @@ class JsonStorage extends Storage {
     return this._lock.runExclusive(async () => {
       this._events = [];
       this._attendees = [];
+      this._tickets = [];
       this._initialized = false;
       this._storagePath = null;
       this._resolvedPath = null;
       this._eventsFilePath = null;
       this._attendeesFilePath = null;
+      this._ticketsFilePath = null;
     });
   }
 }

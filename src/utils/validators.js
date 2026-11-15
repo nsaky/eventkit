@@ -4,7 +4,8 @@ const {
   InvalidEventDataError,
   InvalidAttendeeDataError,
   InvalidEmailError,
-  InvalidEventIdError
+  InvalidEventIdError,
+  InvalidTicketIdError
 } = require('./errors');
 
 const DATE_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -114,6 +115,21 @@ function validateAttendeeId(attendeeId) {
   }
   if (!attendeeId.startsWith('att_') || attendeeId.length < 8) {
     throw new InvalidAttendeeDataError(`Attendee ID '${attendeeId}' is not in valid 'att_<unique-id>' format.`, { attendeeId });
+  }
+}
+
+/**
+ * Validates a ticket ID string.
+ *
+ * @param {string} ticketId - The ticket ID to validate.
+ * @throws {InvalidTicketIdError} If invalid.
+ */
+function validateTicketId(ticketId) {
+  if (typeof ticketId !== 'string' || !ticketId.trim()) {
+    throw new InvalidTicketIdError(ticketId, 'Ticket ID must be a non-empty string.');
+  }
+  if (!ticketId.startsWith('EK-') || ticketId.length < 8) {
+    throw new InvalidTicketIdError(ticketId, `Ticket ID '${ticketId}' is not in valid 'EK-<identifier>' format.`);
   }
 }
 
@@ -303,6 +319,7 @@ module.exports = {
   isValidPhone,
   validateEventId,
   validateAttendeeId,
+  validateTicketId,
   validateEventData,
   validateEventUpdates,
   validateAttendeeData

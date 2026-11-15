@@ -1,6 +1,9 @@
 'use strict';
 
-const { generateAttendeeId } = require('../utils/id-generator');
+const {
+  generateAttendeeId,
+  generateTicketId
+} = require('../utils/id-generator');
 const {
   validateEventId,
   validateAttendeeId,
@@ -28,11 +31,11 @@ class AttendeeManager {
   }
 
   /**
-   * Registers a new attendee for an event.
+   * Registers a new attendee for an event and automatically creates a digital ticket.
    *
    * @param {string} eventId - Unique event identifier.
    * @param {object} attendeeData - Attendee input data (name, email, optional phone).
-   * @returns {Promise<object>} The registered attendee record.
+   * @returns {Promise<object>} The registered attendee record with associated ticket.
    */
   async registerAttendee(eventId, attendeeData) {
     validateEventId(eventId);
@@ -65,26 +68,49 @@ class AttendeeManager {
         );
       }
 
-      // 4. Generate unique attendee ID and build record
-      const id = generateAttendeeId(allAttendees);
-      const registeredAt = new Date().toISOString();
+      // 4. Generate unique attendee ID and ticket ID
+      const allTickets = this._storage.getTickets();
+      const attendeeId = generateAttendeeId(allAttendees);
+      const ticketId = generateTicketId(allTickets);
+      const timestamp = new Date().toISOString();
 
       const newAttendee = {
-        id,
+        id: attendeeId,
         eventId,
         name: validated.name,
         email: validated.email,
         phone: validated.phone,
-        registeredAt,
+        registeredAt: timestamp,
         status: 'REGISTERED',
         checkedIn: false,
         checkedInAt: null
       };
 
-      allAttendees.push(newAttendee);
-      await this._storage.saveAttendees(allAttendees);
+      const newTicket = {
+        id: ticketId,
+        eventId,
+        attendeeId,
+        status: 'ACTIVE',
+        createdAt: timestamp,
+        checkedInAt: null
+      };
 
-      return this._storage.getAttendeeById(id);
+      allAttendees.push(newAttendee);
+      allTickets.push(newTicket);
+
+      // 5. Persist both records consistently
+      await this._storage.saveBatch({
+        attendees: allAttendees,
+        tickets: allTickets
+      });
+
+      const savedAttendee = this._storage.getAttendeeById(attendeeId);
+      const savedTicket = this._storage.getTicketById(ticketId);
+
+      return {
+        ...savedAttendee,
+        ticket: savedTicket
+      };
     });
   }
 
@@ -97,7 +123,13 @@ class AttendeeManager {
   async getAttendee(attendeeId) {
     validateAttendeeId(attendeeId);
     const attendee = this._storage.getAttendeeById(attendeeId);
-    return attendee || null;
+    if (!attendee) return null;
+
+    const ticket = this._storage.getTicketByAttendeeId(attendeeId);
+    return {
+      ...attendee,
+      ticket: ticket || null
+    };
   }
 
   /**
@@ -115,11 +147,18 @@ class AttendeeManager {
       throw new EventNotFoundError(eventId);
     }
 
-    return this._storage.getAttendeesByEventId(eventId);
+    const attendees = this._storage.getAttendeesByEventId(eventId);
+    return attendees.map(a => {
+      const ticket = this._storage.getTicketByAttendeeId(a.id);
+      return {
+        ...a,
+        ticket: ticket || null
+      };
+    });
   }
 
   /**
-   * Removes an attendee record by attendee ID.
+   * Removes an attendee record and cascade-removes the associated ticket record.
    *
    * @param {string} attendeeId - Unique attendee identifier.
    * @returns {Promise<object>} The removed attendee record.
@@ -136,9 +175,16 @@ class AttendeeManager {
       }
 
       const removedAttendee = allAttendees[index];
-      const remaining = allAttendees.filter(a => a.id !== attendeeId);
+      const remainingAttendees = allAttendees.filter(a => a.id !== attendeeId);
 
-      await this._storage.saveAttendees(remaining);
+      // Cascade remove associated ticket
+      const allTickets = this._storage.getTickets();
+      const remainingTickets = allTickets.filter(t => t.attendeeId !== attendeeId);
+
+      await this._storage.saveBatch({
+        attendees: remainingAttendees,
+        tickets: remainingTickets
+      });
 
       return removedAttendee;
     });
